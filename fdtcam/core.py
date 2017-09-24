@@ -1,5 +1,6 @@
 """Python FDT Camera module."""
 import requests
+from .helpers import to_dict
 from .const import (
     DEFAULT_HTTP_PORT, DEFAULT_USERNAME, DEFAULT_PASSWORD)
 
@@ -25,49 +26,25 @@ class FDTCam(object):
     @property
     def __baseurl(self):
         """Base URL used CGI API requests on FDT Camera."""
-        return "http://" + self._host \
-                + "/cgi-bin/hi3510/param.cgi?cmd={}&-usr=" \
-                + self._username + "&-pwd=" + self._password
+        return "http://" + self._host + \
+               "/cgi-bin/hi3510/param.cgi?cmd={}&-usr=" + \
+               self._username + "&-pwd=" + self._password
 
     @property
     def __command_url(self):
         """Base command URL used by CGI API requests."""
-        return "http://" + self._host \
-                + "/cgi-bin/hi3510/{}&-usr=" \
-                + self._username + "&-pwd=" + self._password
+        return "http://" + self._host + \
+               "/cgi-bin/hi3510/{}&-usr=" + \
+               self._username + "&-pwd=" + self._password
 
-    def __to_dict(self, response):
-        """Format response to dict."""
-        if not isinstance(response, str):
-            raise
-
-        # dict to return
-        rdict = {}
-
-        # remove single quotes and semi-collon characters
-        response = response.replace('\'', '').replace(';', '')
-
-        # eliminate 'var ' from response and create a list
-        rlist = [l.split('var ', 1)[1] for l in response.splitlines()]
-
-        # for each member of the list, remove the double quotes
-        # and populate dictionary
-        for item in rlist:
-            key, value = item.replace('"', '').strip().split('=')
-            rdict[key] = value
-
-        return rdict
-
-    def query(self, cmd):
+    def query(self, cmd, raw=False):
         """Generic abstraction to run query."""
         url = self.__baseurl.format(cmd)
         req = self.session.get(url)
-        if req.ok and req.status_code == 200:
-            try:
-                return self.__to_dict(req.text)
-            except:
-                return req.text
-        req.raise_for_status()
+        if not req.ok:
+            req.raise_for_status()
+
+        return req.text if raw else to_dict(req.text)
 
     @property
     def device_type(self):
@@ -100,8 +77,8 @@ class FDTCam(object):
             if filename is None:
                 return req.content
 
-            with open(filename, 'wb') as fd:
-                fd.write(req.content)
+            with open(filename, 'wb') as snap:
+                snap.write(req.content)
         return
 
     @property
